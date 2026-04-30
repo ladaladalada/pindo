@@ -1,644 +1,475 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>拼豆图纸生成器 Pro</title>
-<style>
-  @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap');
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Vibe 测音准与声控中心 Ultimate</title>
+    <style>
+        /* ================= 基础样式 ================= */
+        :root {
+            --bg-color: #1a1a2e;
+            --primary: #FF6B6B;
+            --secondary: #4ECDC4;
+            --accent: #F9D423;
+            --dark: #16213e;
+            --white: #ffffff;
+            --panel-bg: #0f3460;
+            --border: 3px solid #e94560;
+        }
 
-  :root {
-    --bg: #f0f4ff;
-    --card: #ffffff;
-    --accent: #5b7fff;
-    --accent2: #ff6b9d;
-    --text: #1a1a2e;
-    --sub: #666;
-    --border: #e0e7ff;
-    --grid-line: rgba(0,0,0,0.12);
-  }
+        * { box-sizing: border-box; font-family: 'Comic Sans MS', 'Varela Round', 'PingFang SC', sans-serif; }
+        
+        body {
+            margin: 0; padding: 0; background-color: var(--bg-color); color: var(--white);
+            display: flex; flex-direction: column; align-items: center; min-height: 100vh;
+        }
 
-  * { box-sizing: border-box; margin: 0; padding: 0; }
+        header { width: 100%; max-width: 800px; padding: 20px; text-align: center; }
+        h1 { margin: 0 0 15px 0; font-size: 28px; text-shadow: 2px 2px 0px var(--primary); }
+        
+        .tabs { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; }
+        .tab-btn {
+            background: var(--panel-bg); color: var(--white); border: 2px solid var(--secondary); border-radius: 12px;
+            padding: 10px 20px; font-size: 16px; font-weight: bold; cursor: pointer;
+            box-shadow: 0 4px 0px var(--secondary); transition: all 0.1s;
+        }
+        .tab-btn.active {
+            background: var(--secondary); color: var(--bg-color);
+            transform: translate(0, 4px); box-shadow: 0 0px 0px var(--secondary);
+        }
 
-  body {
-    font-family: 'Nunito', sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    min-height: 100vh;
-  }
+        .mic-control {
+            margin-top: 15px; padding: 10px 20px; background: var(--primary); color: white;
+            border: none; border-radius: 20px; font-size: 16px; font-weight: bold; cursor: pointer;
+            box-shadow: 0 4px 15px rgba(255, 107, 107, 0.4);
+        }
 
-  header {
-    background: var(--card);
-    border-bottom: 2px solid var(--border);
-    padding: 16px 20px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    box-shadow: 0 2px 12px rgba(91,127,255,0.07);
-    position: sticky;
-    top: 0;
-    z-index: 100;
-  }
+        .module {
+            display: none; width: 100%; max-width: 800px; background: var(--dark);
+            border: var(--border); border-radius: 20px; padding: 20px; margin-top: 20px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.5); flex-direction: column; align-items: center;
+            position: relative;
+        }
+        .module.active { display: flex; }
 
-  .logo {
-    width: 36px; height: 36px;
-    background: linear-gradient(135deg, var(--accent), var(--accent2));
-    border-radius: 10px;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 18px;
-  }
+        /* ======== 模块 Canvas 容器 ======== */
+        canvas {
+            width: 100%; max-width: 760px; background: var(--bg-color); 
+            border-radius: 15px; display: block; border: 2px solid #2a2a4a;
+        }
+        
+        .ui-header { text-align: center; margin-bottom: 10px; width: 100%; display: flex; justify-content: space-between; align-items: center;}
+        .ui-title { font-size: 20px; font-weight: bold; color: var(--secondary); }
+        .ui-score { font-size: 24px; font-weight: bold; color: var(--accent); }
+        
+        .controls { display: flex; gap: 10px; margin-bottom: 15px; width: 100%; justify-content: flex-start;}
+        select { padding: 8px; border-radius: 8px; background: var(--panel-bg); color: white; border: 1px solid var(--secondary); font-size: 16px; outline: none; }
 
-  header h1 { font-size: 18px; font-weight: 900; letter-spacing: -0.5px; }
-  header span { color: var(--accent); }
-  .header-tag { margin-left: auto; font-size: 11px; color: var(--sub); font-weight: 700; background: var(--bg); padding: 4px 8px; border-radius: 10px; }
+        /* 游戏结束的浮层恢复 */
+        .game-overlay {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: rgba(22, 33, 62, 0.95); border: 2px solid var(--primary); padding: 30px;
+            border-radius: 15px; text-align: center; display: none; box-shadow: 0 0 30px rgba(255,107,107,0.3);
+        }
 
-  .main { display: flex; gap: 20px; padding: 20px; max-width: 1300px; margin: 0 auto; align-items: flex-start;}
-
-  .panel {
-    background: var(--card);
-    border-radius: 16px;
-    padding: 20px;
-    border: 1.5px solid var(--border);
-    box-shadow: 0 4px 20px rgba(91,127,255,0.06);
-    margin-bottom: 20px;
-  }
-
-  .left { width: 300px; flex-shrink: 0; display: flex; flex-direction: column; }
-
-  .upload-zone {
-    border: 2px dashed var(--accent);
-    border-radius: 12px;
-    padding: 24px 16px;
-    text-align: center;
-    cursor: pointer;
-    transition: all 0.2s;
-    background: #f5f8ff;
-    position: relative;
-  }
-  .upload-zone:hover { background: #eef2ff; border-color: var(--accent2); }
-  .upload-zone.dragover { background: #e8edff; transform: scale(1.02); }
-  .upload-zone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
-  .upload-icon { font-size: 28px; margin-bottom: 8px; }
-  .upload-zone p { font-size: 13px; color: var(--sub); line-height: 1.5; }
-  .upload-zone strong { color: var(--accent); font-weight: 800; }
-
-  .section-title {
-    font-size: 12px;
-    font-weight: 800;
-    color: var(--sub);
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    margin-bottom: 12px;
-    border-bottom: 1px solid var(--border);
-    padding-bottom: 8px;
-  }
-
-  .control-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 8px;
-  }
-  .control-row label { font-size: 13px; font-weight: 700; }
-  .control-row span { font-size: 13px; color: var(--accent); font-weight: 800; }
-
-  input[type=range] { width: 100%; accent-color: var(--accent); margin-top: 4px; margin-bottom: 12px;}
-
-  /* 修改：移动端自适应网格，不再固定列数 */
-  .palette-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(28px, 1fr));
-    gap: 6px;
-    max-height: 200px;
-    overflow-y: auto;
-    padding-right: 4px;
-  }
-  /* 优化滚动条 */
-  .palette-grid::-webkit-scrollbar { width: 4px; }
-  .palette-grid::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
-
-  .palette-dot {
-    width: 100%;
-    aspect-ratio: 1;
-    border-radius: 50%;
-    border: 1px solid rgba(0,0,0,0.15);
-    cursor: pointer;
-    transition: transform 0.15s;
-    position: relative;
-    box-shadow: inset 0 -2px 4px rgba(0,0,0,0.1); /* 增加实体珠子的立体感 */
-  }
-  .palette-dot:hover { transform: scale(1.2); z-index: 10; box-shadow: 0 4px 8px rgba(0,0,0,0.2); }
-  .palette-dot.disabled { opacity: 0.15; filter: grayscale(100%); }
-  .palette-dot.active::after {
-    content: '✓';
-    position: absolute; inset: 0;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 10px; color: white;
-    text-shadow: 0 0 4px rgba(0,0,0,0.9);
-  }
-
-  .btn {
-    width: 100%;
-    padding: 14px;
-    border: none;
-    border-radius: 12px;
-    font-family: inherit;
-    font-size: 15px;
-    font-weight: 800;
-    cursor: pointer;
-    transition: all 0.2s;
-    margin-bottom: 12px;
-  }
-  .btn-primary {
-    background: linear-gradient(135deg, var(--accent), #7c9fff);
-    color: white;
-    box-shadow: 0 4px 15px rgba(91,127,255,0.35);
-  }
-  .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(91,127,255,0.45); }
-  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
-  .btn-secondary { background: #f0f4ff; color: var(--accent); border: 1.5px solid var(--border); }
-  .btn-secondary:hover { background: #e8edff; }
-
-  .right { flex: 1; min-width: 0; } /* 防止flex子元素溢出 */
-
-  .canvas-container {
-    width: 100%;
-    overflow-x: auto; /* 移动端手指滑动关键属性 */
-    background: #fafbFF;
-    border-radius: 12px;
-    border: 1px solid var(--border);
-    padding: 10px;
-  }
-
-  .canvas-area {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 300px;
-    position: relative;
-  }
-
-  .placeholder {
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    color: #bbb; font-size: 14px; gap: 12px; text-align: center;
-  }
-  .placeholder-icon { font-size: 48px; opacity: 0.4; }
-
-  #outputCanvas {
-    display: none;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.1);
-    image-rendering: pixelated;
-    max-width: none; /* 允许在容器内突破宽度以供滑动 */
-  }
-
-  .stats-bar {
-    display: flex; gap: 16px; margin-top: 16px; padding-top: 16px;
-    border-top: 1.5px solid var(--border); flex-wrap: wrap; justify-content: space-around;
-  }
-  .stat { text-align: center; }
-  .stat .val { font-size: 20px; font-weight: 900; color: var(--accent); }
-  .stat .lbl { font-size: 11px; color: var(--sub); font-weight: 700; }
-
-  .color-legend { margin-top: 16px; display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; }
-  .legend-item {
-    display: flex; align-items: center; gap: 6px;
-    background: #f8f9ff; padding: 6px 8px; border-radius: 8px;
-    border: 1px solid var(--border); font-size: 11px; font-weight: 700;
-  }
-  .legend-dot {
-    width: 14px; height: 14px; border-radius: 50%;
-    border: 1px solid rgba(0,0,0,0.15); flex-shrink: 0; box-shadow: inset 0 -1px 2px rgba(0,0,0,0.1);
-  }
-
-  .preview-img { max-width: 100%; max-height: 150px; border-radius: 8px; border: 1px solid var(--border); display: none; object-fit: contain; margin: 12px auto 0; }
-
-  .tabs { display: flex; gap: 8px; margin-bottom: 16px; }
-  .tab {
-    flex: 1; text-align: center; padding: 10px 16px; border-radius: 12px;
-    font-size: 13px; font-weight: 800; cursor: pointer;
-    border: 1.5px solid var(--border); background: white; color: var(--sub); transition: all 0.2s;
-  }
-  .tab.active { background: var(--accent); color: white; border-color: var(--accent); }
-
-  #hiddenCanvas { display: none; }
-
-  /* 移动端特殊优化 */
-  @media (max-width: 800px) {
-    .main { flex-direction: column; padding: 12px; gap: 12px; }
-    .left { width: 100%; }
-    .panel { padding: 16px; margin-bottom: 0; }
-    header { padding: 12px 16px; }
-    .header-tag { display: none; } /* 手机上隐藏副标题省空间 */
-    .color-legend { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); }
-  }
-</style>
+        @media (max-width: 600px) {
+            .module { padding: 10px; border-width: 2px; }
+            canvas { height: 250px; }
+        }
+    </style>
 </head>
 <body>
 
-<header>
-  <div class="logo">🫘</div>
-  <h1>拼<span>豆</span>图纸生成器 <span>Pro</span></h1>
-  <span class="header-tag">70+ 专业实体色卡 · 手机自适应适配</span>
-</header>
-
-<div class="main">
-  <!-- 左侧控制面板 -->
-  <div class="left">
-    <div class="panel">
-      <div class="section-title">1. 上传原图</div>
-      <div class="upload-zone" id="uploadZone">
-        <input type="file" id="fileInput" accept="image/*">
-        <div class="upload-icon">📸</div>
-        <p><strong>点击上传</strong> 或拖放图片<br>建议使用背景干净的图片</p>
-      </div>
-      <img id="previewImg" class="preview-img">
-    </div>
-
-    <div class="panel">
-      <div class="section-title">2. 调节参数</div>
-
-      <div class="control-row">
-        <label>横向珠子数量（列数）</label>
-        <span id="colsVal">48</span>
-      </div>
-      <input type="range" id="colsSlider" min="16" max="150" value="48" step="2">
-
-      <div class="control-row" style="margin-top:8px;">
-        <label>显示对齐网格线</label>
-        <input type="checkbox" id="showGrid" checked style="width:18px;height:18px;accent-color:var(--accent);">
-      </div>
-
-      <div class="control-row" style="margin-top:8px;">
-        <label>强制显示色号标签</label>
-        <input type="checkbox" id="showNumbers" checked style="width:18px;height:18px;accent-color:var(--accent);">
-      </div>
-    </div>
-
-    <div class="panel">
-      <div class="section-title">3. 色板管理 (70色)</div>
-      <div style="font-size:11px;color:var(--sub);margin-bottom:12px;line-height:1.4;">
-        默认开启全色系匹配。点击单个颜色可剔除不需要的颜色（适合手中没有该颜色的情况）。
-      </div>
-      <div class="palette-grid" id="paletteGrid"></div>
-      <div style="display:flex;gap:8px;margin-top:16px;">
-        <button class="btn btn-secondary" style="font-size:12px;padding:8px;margin:0;" onclick="selectAll()">✅ 全选颜色</button>
-        <button class="btn btn-secondary" style="font-size:12px;padding:8px;margin:0;" onclick="selectNone()">❌ 清空颜色</button>
-      </div>
-    </div>
-
-    <button class="btn btn-primary" id="generateBtn" disabled onclick="generate()">🎨 生成图纸</button>
-    <button class="btn btn-secondary" id="downloadBtn" style="display:none;" onclick="download()">⬇️ 保存图纸到相册</button>
-  </div>
-
-  <!-- 右侧预览 -->
-  <div class="right">
-    <div class="panel">
-      <div class="tabs">
-        <div class="tab active" onclick="switchTab('pattern')">图纸预览区</div>
-        <div class="tab" onclick="switchTab('legend')">采购数量清单</div>
-      </div>
-
-      <div id="tabPattern">
-        <div class="canvas-container">
-          <div class="canvas-area">
-            <div class="placeholder" id="placeholder">
-              <div class="placeholder-icon">🪄</div>
-              <div>左侧调整完毕后<br>点击「生成图纸」开始计算</div>
-            </div>
-            <canvas id="outputCanvas"></canvas>
-          </div>
+    <header>
+        <h1>🎤 Vibe 音游中心</h1>
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('tuner', this)">K歌音准仪</button>
+            <button class="tab-btn" onclick="switchTab('song', this)">节奏音准挑战</button>
+            <button class="tab-btn" onclick="switchTab('game', this)">声控跑酷</button>
         </div>
-        <div class="stats-bar" id="statsBar" style="display:none;">
-          <div class="stat"><div class="val" id="statCols">-</div><div class="lbl">横向(颗)</div></div>
-          <div class="stat"><div class="val" id="statRows">-</div><div class="lbl">纵向(颗)</div></div>
-          <div class="stat"><div class="val" id="statTotal">-</div><div class="lbl">总耗材(颗)</div></div>
-          <div class="stat"><div class="val" id="statColors">-</div><div class="lbl">颜色(种)</div></div>
+        <button class="mic-control" id="btnMic" onclick="initAudio()">点击开启麦克风 🎙️</button>
+    </header>
+
+    <!-- 模块 1：K歌音准仪 -->
+    <div id="tuner" class="module active">
+        <div class="ui-header">
+            <div class="ui-title" id="hzDisplay">发出声音开始画线...</div>
+            <div class="ui-score" id="noteDisplay" style="color:var(--primary)">--</div>
         </div>
-      </div>
-
-      <div id="tabLegend" style="display:none;">
-        <div style="font-size:13px;color:var(--sub);margin-bottom:12px;font-weight:bold;">所需颜色及准确颗数清单：</div>
-        <div class="color-legend" id="colorLegend"></div>
-      </div>
+        <canvas id="tunerCanvas" width="760" height="350"></canvas>
     </div>
-  </div>
-</div>
 
-<canvas id="hiddenCanvas"></canvas>
+    <!-- 模块 2：老歌测音准 -->
+    <div id="song" class="module">
+        <div class="controls">
+            <select id="songSelect">
+                <option value="star">🌟 小星星</option>
+                <option value="birthday">🎂 生日快乐歌</option>
+                <option value="joy">🕊️ 欢乐颂</option>
+            </select>
+            <button class="tab-btn" style="background:var(--accent); color:var(--bg-color);" onclick="startSong()">▶️ 开始挑战</button>
+        </div>
+        <div class="ui-header">
+            <div class="ui-title">用声音撞击方块！</div>
+            <div class="ui-score">得分: <span id="songScoreDisplay">0</span></div>
+        </div>
+        <canvas id="songCanvas" width="760" height="350"></canvas>
+    </div>
 
-<script>
-// ===== 究极进阶拼豆色板 (涵盖 Perler 及部分 Artkal 标准通用实体色) =====
-const PALETTE = [
-  // 黑白灰系
-  { name: '01 白 (White)', hex: '#FFFFFF' },
-  { name: '18 黑 (Black)', hex: '#231E20' },
-  { name: '17 浅灰 (Light Grey)', hex: '#BDBDBF' },
-  { name: '92 灰 (Grey)', hex: '#8C8C8C' },
-  { name: '105 银 (Silver)', hex: '#949599' },
-  { name: '104 深灰 (Dark Grey)', hex: '#4A4C54' },
-  // 棕土系
-  { name: '12 棕 (Brown)', hex: '#4A2F25' },
-  { name: '21 浅棕 (Light Brown)', hex: '#8E6145' },
-  { name: '97 铁锈 (Rust)', hex: '#86363B' },
-  { name: '35 黄褐 (Tan)', hex: '#C08F68' },
-  { name: '90 沙 (Sand)', hex: '#DFB58C' },
-  { name: '33 桃肤 (Peach)', hex: '#F6B6A9' },
-  { name: '63 腮红 (Blush)', hex: '#F4D3D4' },
-  { name: '103 浅红褐 (Fawn)', hex: '#D6A88B' },
-  { name: '02 奶油 (Cream)', hex: '#F0E8C9' },
-  // 黄橙系
-  { name: '56 浅黄 (Pastel Yellow)', hex: '#F4DF71' },
-  { name: '03 黄 (Yellow)', hex: '#ECCC36' },
-  { name: '57 车打 (Cheddar)', hex: '#EA9935' },
-  { name: '98 焦糖 (Butterscotch)', hex: '#D38241' },
-  { name: '04 橙 (Orange)', hex: '#E65126' },
-  { name: '101 亮橙 (Tangerine)', hex: '#FF7F00' },
-  { name: '79 瓜瓤 (Cantaloupe)', hex: '#FFAD5E' },
-  // 红粉系
-  { name: '90 番茄 (Tomato)', hex: '#DF3838' },
-  { name: '05 红 (Red)', hex: '#C62635' },
-  { name: '100 樱桃 (Cherry)', hex: '#A62137' },
-  { name: '68 蔓越莓 (Cranapple)', hex: '#682332' },
-  { name: '61 浅粉 (Pastel Pink)', hex: '#F08CA9' },
-  { name: '06 泡泡糖 (Bubblegum)', hex: '#E44577' },
-  { name: '83 粉红 (Pink)', hex: '#D23469' },
-  { name: '38 品红 (Magenta)', hex: '#EC296B' },
-  { name: '88 覆盆子 (Raspberry)', hex: '#9B224E' },
-  { name: '108 珊瑚 (Coral)', hex: '#FF6D69' },
-  { name: '109 亮粉 (Hot Pink)', hex: '#FF1493' },
-  // 紫色系
-  { name: '07 紫 (Purple)', hex: '#512F66' },
-  { name: '54 浅紫 (Pastel Lavender)', hex: '#9580B8' },
-  { name: '60 梅紫 (Plum)', hex: '#853F77' },
-  { name: '70 紫蓝 (Cobalt)', hex: '#314488' },
-  { name: '110 葡萄 (Grape)', hex: '#6B3FA0' },
-  { name: '111 薰衣草 (Lavender)', hex: '#BCA8E8' },
-  // 蓝色系
-  { name: '52 浅蓝 (Pastel Blue)', hex: '#6091C8' },
-  { name: '09 亮蓝 (Light Blue)', hex: '#2A6EAD' },
-  { name: '08 蓝 (Blue)', hex: '#1C3D82' },
-  { name: '10 深蓝 (Dark Blue)', hex: '#1A2859' },
-  { name: '96 牙膏 (Toothpaste)', hex: '#71C6C5' },
-  { name: '106 藏青 (Navy)', hex: '#141836' },
-  { name: '112 天蓝 (Sky)', hex: '#87CEEB' },
-  { name: '113 绿松石 (Turquoise)', hex: '#40E0D0' },
-  // 绿色系
-  { name: '53 浅绿 (Pastel Green)', hex: '#7ACE86' },
-  { name: '71 奇异果 (Kiwi Lime)', hex: '#79AF4E' },
-  { name: '11 亮绿 (Light Green)', hex: '#4EAE72' },
-  { name: '80 绿 (Green)', hex: '#368557' },
-  { name: '10 深绿 (Dark Green)', hex: '#275C44' },
-  { name: '82 常春藤 (Evergreen)', hex: '#233830' },
-  { name: '114 橄榄 (Olive)', hex: '#808000' },
-  { name: '115 森林绿 (Forest)', hex: '#228B22' },
-  { name: '116 荧光绿 (Neon Green)', hex: '#39FF14' },
-  // 荧光与特殊色 (可选补充)
-  { name: '200 荧光黄 (Neon Yellow)', hex: '#DFFF00' },
-  { name: '201 荧光橙 (Neon Orange)', hex: '#FF5F1F' },
-  { name: '202 荧光粉 (Neon Pink)', hex: '#FF10F0' }
-];
+    <!-- 模块 3：声控游戏 (恢复了完整的 UI 和流程) -->
+    <div id="game" class="module">
+        <div class="controls">
+            <button class="tab-btn" style="background:var(--accent); color:var(--bg-color);" onclick="startGame()">▶️ 开始飞行</button>
+        </div>
+        <div class="ui-header">
+            <div class="ui-title">发高音升，低音降，安静悬停</div>
+            <div class="ui-score">得分: <span id="gameScoreDisplay">0</span></div>
+        </div>
+        <canvas id="gameCanvas" width="760" height="300"></canvas>
+        
+        <div class="game-overlay" id="gameOverScreen">
+            <h2 style="color:var(--primary); margin-top:0;">游戏结束!</h2>
+            <p style="font-size: 20px;">最终得分: <span id="finalScore" style="color:var(--accent); font-weight:bold;">0</span></p>
+            <button class="tab-btn" style="background:var(--secondary); color:var(--bg-color); margin-top:10px;" onclick="startGame()">🔄 再来一局</button>
+        </div>
+    </div>
 
-let enabledColors = new Set(PALETTE.map((_, i) => i));
-let uploadedImage = null;
-let lastPattern = null;
+    <script>
+        // ================= 全局音频与算法 =================
+        let audioContext, analyser, microphone;
+        let isMicActive = false;
+        let animationId = null; 
 
-// ===== 初始化色板UI =====
-function initPalette() {
-  const grid = document.getElementById('paletteGrid');
-  grid.innerHTML = '';
-  PALETTE.forEach((c, i) => {
-    const dot = document.createElement('div');
-    dot.className = 'palette-dot active';
-    dot.style.background = c.hex;
-    dot.title = c.name;
-    dot.onclick = () => toggleColor(i, dot);
-    grid.appendChild(dot);
-  });
-}
+        const noteStrings = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+        
+        function autoCorrelate(buf, sampleRate) {
+            let SIZE = buf.length; let rms = 0;
+            for (let i = 0; i < SIZE; i++) rms += buf[i] * buf[i];
+            rms = Math.sqrt(rms / SIZE);
+            if (rms < 0.035) return -1; // 噪音门
 
-function toggleColor(i, el) {
-  if (enabledColors.has(i)) {
-    enabledColors.delete(i);
-    el.classList.remove('active'); el.classList.add('disabled');
-  } else {
-    enabledColors.add(i);
-    el.classList.add('active'); el.classList.remove('disabled');
-  }
-}
+            let r1 = 0, r2 = SIZE - 1, thres = 0.2;
+            for (let i = 0; i < SIZE / 2; i++) if (Math.abs(buf[i]) < thres) { r1 = i; break; }
+            for (let i = 1; i < SIZE / 2; i++) if (Math.abs(buf[SIZE - i]) < thres) { r2 = SIZE - i; break; }
 
-function selectAll() {
-  PALETTE.forEach((_, i) => enabledColors.add(i));
-  document.querySelectorAll('.palette-dot').forEach(d => { d.classList.add('active'); d.classList.remove('disabled'); });
-}
+            buf = buf.slice(r1, r2); SIZE = buf.length;
+            let c = new Array(SIZE).fill(0);
+            for (let i = 0; i < SIZE; i++)
+                for (let j = 0; j < SIZE - i; j++) c[i] = c[i] + buf[j] * buf[j + i];
 
-function selectNone() {
-  enabledColors.clear();
-  document.querySelectorAll('.palette-dot').forEach(d => { d.classList.remove('active'); d.classList.add('disabled'); });
-}
+            let d = 0; while (c[d] > c[d + 1]) d++;
+            let maxval = -1, maxpos = -1;
+            for (let i = d; i < SIZE; i++) { if (c[i] > maxval) { maxval = c[i]; maxpos = i; } }
 
-// ===== 文件上传 =====
-const fileInput = document.getElementById('fileInput');
-const uploadZone = document.getElementById('uploadZone');
+            let T0 = maxpos;
+            if (c[T0] < 0.1) return -1; // 清晰度校验
 
-fileInput.addEventListener('change', e => { if (e.target.files[0]) loadImage(e.target.files[0]); });
-uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('dragover'); });
-uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
-uploadZone.addEventListener('drop', e => {
-  e.preventDefault(); uploadZone.classList.remove('dragover');
-  if (e.dataTransfer.files[0]) loadImage(e.dataTransfer.files[0]);
-});
-
-function loadImage(file) {
-  const reader = new FileReader();
-  reader.onload = ev => {
-    const img = new Image();
-    img.onload = () => {
-      uploadedImage = img;
-      const preview = document.getElementById('previewImg');
-      preview.src = ev.target.result;
-      preview.style.display = 'block';
-      document.getElementById('generateBtn').disabled = false;
-      document.getElementById('generateBtn').innerHTML = '🎨 生成 / 重新计算图纸';
-    };
-    img.src = ev.target.result;
-  };
-  reader.readAsDataURL(file);
-}
-
-// ===== 滑块 =====
-const colsSlider = document.getElementById('colsSlider');
-colsSlider.addEventListener('input', () => { document.getElementById('colsVal').textContent = colsSlider.value; });
-
-// ===== 颜色匹配 (Lab色彩空间) =====
-function hexToRgb(hex) {
-  const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
-  return [r, g, b];
-}
-
-function rgbToLab(r, g, b) {
-  let R = r/255, G = g/255, B = b/255;
-  R = R > 0.04045 ? Math.pow((R+0.055)/1.055, 2.4) : R/12.92;
-  G = G > 0.04045 ? Math.pow((G+0.055)/1.055, 2.4) : G/12.92;
-  B = B > 0.04045 ? Math.pow((B+0.055)/1.055, 2.4) : B/12.92;
-  let X = (R*0.4124 + G*0.3576 + B*0.1805) / 0.95047;
-  let Y = (R*0.2126 + G*0.7152 + B*0.0722) / 1.00000;
-  let Z = (R*0.0193 + G*0.1192 + B*0.9505) / 1.08883;
-  const f = v => v > 0.008856 ? Math.cbrt(v) : 7.787*v + 16/116;
-  return [116*f(Y)-16, 500*(f(X)-f(Y)), 200*(f(Y)-f(Z))];
-}
-
-function colorDist(lab1, lab2) { return Math.sqrt((lab1[0]-lab2[0])**2 + (lab1[1]-lab2[1])**2 + (lab1[2]-lab2[2])**2); }
-
-const paletteLab = PALETTE.map(c => rgbToLab(...hexToRgb(c.hex)));
-
-function nearestColor(r, g, b) {
-  if (enabledColors.size === 0) return -1;
-  const lab = rgbToLab(r, g, b);
-  let best = -1, bestDist = Infinity;
-  enabledColors.forEach(i => {
-    const d = colorDist(lab, paletteLab[i]);
-    if (d < bestDist) { bestDist = d; best = i; }
-  });
-  return best;
-}
-
-// ===== 核心生成逻辑 =====
-function generate() {
-  if (!uploadedImage) return;
-  if (enabledColors.size === 0) { alert("至少得在调色板里留一个颜色吧！"); return; }
-
-  const cols = parseInt(colsSlider.value);
-  const aspect = uploadedImage.height / uploadedImage.width;
-  const rows = Math.round(cols * aspect);
-  
-  // 改进：大幅提高渲染基准分辨率，保证数字不糊
-  const CELL = Math.max(12, Math.floor(1800 / cols)); 
-
-  const hidden = document.getElementById('hiddenCanvas');
-  hidden.width = cols; hidden.height = rows;
-  const hctx = hidden.getContext('2d', { willReadFrequently: true });
-  hctx.drawImage(uploadedImage, 0, 0, cols, rows);
-  const imgData = hctx.getImageData(0, 0, cols, rows).data;
-
-  const pattern = [];
-  const colorCount = {};
-
-  for (let r = 0; r < rows; r++) {
-    pattern[r] = [];
-    for (let c = 0; c < cols; c++) {
-      const idx = (r * cols + c) * 4;
-      const pa = imgData[idx+3];
-      let ci = -1;
-      if (pa >= 64) { ci = nearestColor(imgData[idx], imgData[idx+1], imgData[idx+2]); }
-      pattern[r][c] = ci;
-      if (ci >= 0) colorCount[ci] = (colorCount[ci] || 0) + 1;
-    }
-  }
-
-  lastPattern = { pattern, rows, cols, colorCount, CELL };
-  renderCanvas(pattern, rows, cols, colorCount, CELL);
-}
-
-function renderCanvas(pattern, rows, cols, colorCount, CELL) {
-  const showGrid = document.getElementById('showGrid').checked;
-  const showNumbers = document.getElementById('showNumbers').checked;
-
-  const canvas = document.getElementById('outputCanvas');
-  canvas.width = cols * CELL;
-  canvas.height = rows * CELL;
-  const ctx = canvas.getContext('2d');
-  
-  ctx.clearRect(0, 0, canvas.width, canvas.height); // 清空画布
-
-  for (let r = 0; r < rows; r++) {
-    for (let c = 0; c < cols; c++) {
-      const ci = pattern[r][c];
-      if (ci < 0) {
-        ctx.fillStyle = 'rgba(255,255,255,0)'; // 透明底色
-      } else {
-        ctx.fillStyle = PALETTE[ci].hex;
-        ctx.fillRect(c*CELL, r*CELL, CELL, CELL);
-
-        // 模拟拼豆质感
-        ctx.beginPath(); ctx.arc(c*CELL + CELL/2, r*CELL + CELL/2, CELL/2 - 1.5, 0, Math.PI*2);
-        ctx.fillStyle = PALETTE[ci].hex; ctx.fill();
-        ctx.beginPath(); ctx.arc(c*CELL + CELL*0.35, r*CELL + CELL*0.35, CELL*0.15, 0, Math.PI*2);
-        ctx.fillStyle = 'rgba(255,255,255,0.4)'; ctx.fill();
-
-        // 改进：放宽显示数字的限制，格子大于等于 8 像素就强制渲染
-        if (showNumbers && CELL >= 8) {
-          // 为了防止黑色豆子上的黑色数字看不清，计算反色
-          const rgb = hexToRgb(PALETTE[ci].hex);
-          const brightness = (rgb[0] * 299 + rgb[1] * 587 + rgb[2] * 114) / 1000;
-          ctx.fillStyle = brightness > 128 ? 'rgba(0,0,0,0.8)' : 'rgba(255,255,255,0.9)';
-          
-          let fontSize = Math.max(8, CELL * 0.4);
-          ctx.font = `bold ${fontSize}px sans-serif`;
-          ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-          
-          // 提取数字色号（例如 "01 白" -> 提取 "01"）
-          const codeText = PALETTE[ci].name.split(' ')[0];
-          ctx.fillText(codeText, c*CELL + CELL/2, r*CELL + CELL/2);
+            let x1 = c[T0 - 1], x2 = c[T0], x3 = c[T0 + 1];
+            let a = (x1 + x3 - 2 * x2) / 2; let b = (x3 - x1) / 2;
+            if (a) T0 = T0 - b / (2 * a);
+            return sampleRate / T0; 
         }
-      }
-    }
-  }
 
-  // 绘制网格
-  if (showGrid) {
-    ctx.strokeStyle = 'rgba(0,0,0,0.15)'; ctx.lineWidth = 1;
-    for (let c = 0; c <= cols; c++) { ctx.beginPath(); ctx.moveTo(c*CELL, 0); ctx.lineTo(c*CELL, rows*CELL); ctx.stroke(); }
-    for (let r = 0; r <= rows; r++) { ctx.beginPath(); ctx.moveTo(0, r*CELL); ctx.lineTo(cols*CELL, r*CELL); ctx.stroke(); }
-    ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.lineWidth = 2;
-    for (let c = 0; c <= cols; c+=10) { ctx.beginPath(); ctx.moveTo(c*CELL, 0); ctx.lineTo(c*CELL, rows*CELL); ctx.stroke(); }
-    for (let r = 0; r <= rows; r+=10) { ctx.beginPath(); ctx.moveTo(0, r*CELL); ctx.lineTo(cols*CELL, r*CELL); ctx.stroke(); }
-  }
+        function noteFromPitch(frequency) { return 12 * (Math.log(frequency / 440) / Math.log(2)) + 69; }
+        function centsOffFromPitch(frequency, note) { return Math.floor(1200 * Math.log(frequency / (440 * Math.pow(2, (Math.round(note) - 69) / 12))) / Math.log(2)); }
+        function getNoteName(noteNumber) { return noteStrings[Math.round(noteNumber) % 12] + (Math.floor(Math.round(noteNumber) / 12) - 1); }
 
-  // 显示UI
-  document.getElementById('placeholder').style.display = 'none';
-  canvas.style.display = 'block';
-  document.getElementById('statsBar').style.display = 'flex';
-  document.getElementById('downloadBtn').style.display = 'block';
+        async function initAudio() {
+            if (isMicActive) return;
+            try {
+                window.AudioContext = window.AudioContext || window.webkitAudioContext;
+                audioContext = new AudioContext();
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                analyser = audioContext.createAnalyser(); analyser.fftSize = 2048;
+                microphone = audioContext.createMediaStreamSource(stream); microphone.connect(analyser);
+                
+                isMicActive = true;
+                const btn = document.getElementById('btnMic');
+                btn.innerText = "🎤 麦克风运作中"; btn.style.background = "var(--secondary)"; btn.style.color = "var(--bg-color)";
+                startCurrentModule();
+            } catch (err) { alert("获取麦克风失败！请允许权限。"); }
+        }
 
-  document.getElementById('statCols').textContent = cols;
-  document.getElementById('statRows').textContent = rows;
-  document.getElementById('statTotal').textContent = (rows*cols - (colorCount[-1]||0)).toLocaleString();
-  document.getElementById('statColors').textContent = Object.keys(colorCount).length - (colorCount[-1]?1:0);
+        let currentTab = 'tuner';
+        function switchTab(tabId, btn) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            document.querySelectorAll('.module').forEach(m => m.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            
+            if (animationId) cancelAnimationFrame(animationId);
+            currentTab = tabId; if (isMicActive) startCurrentModule();
+        }
 
-  // 更新清单列表
-  const legend = document.getElementById('colorLegend');
-  legend.innerHTML = '';
-  const sorted = Object.entries(colorCount).filter(([ci])=>ci!=='-1').sort((a,b) => b[1]-a[1]);
-  sorted.forEach(([ci, cnt]) => {
-    const c = PALETTE[ci];
-    const item = document.createElement('div');
-    item.className = 'legend-item';
-    item.innerHTML = `<div class="legend-dot" style="background:${c.hex}"></div><div style="flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${c.name}">${c.name}</div><span style="color:var(--accent);font-weight:900;">×${cnt}</span>`;
-    legend.appendChild(item);
-  });
-}
+        function startCurrentModule() {
+            if (!isMicActive) return;
+            if (currentTab === 'tuner') loopTuner();
+            else if (currentTab === 'song') drawSongInit();
+            else if (currentTab === 'game') drawGameInit();
+        }
 
-// ===== 事件监听 =====
-document.getElementById('showGrid').addEventListener('change', () => { if (lastPattern) renderCanvas(lastPattern.pattern, lastPattern.rows, lastPattern.cols, lastPattern.colorCount, lastPattern.CELL); });
-document.getElementById('showNumbers').addEventListener('change', () => { if (lastPattern) renderCanvas(lastPattern.pattern, lastPattern.rows, lastPattern.cols, lastPattern.colorCount, lastPattern.CELL); });
+        const buf = new Float32Array(2048);
 
-// ===== Tab切换 =====
-function switchTab(tab) {
-  document.querySelectorAll('.tab').forEach((t,i) => { t.classList.toggle('active', (i===0&&tab==='pattern')||(i===1&&tab==='legend')); });
-  document.getElementById('tabPattern').style.display = tab==='pattern' ? '' : 'none';
-  document.getElementById('tabLegend').style.display = tab==='legend' ? '' : 'none';
-}
+        // ================= 模块 1：K歌瀑布流 =================
+        const tCanvas = document.getElementById('tunerCanvas');
+        const tCtx = tCanvas.getContext('2d');
+        const MIN_NOTE = 43, MAX_NOTE = 79, NOTE_RANGE = MAX_NOTE - MIN_NOTE;
+        let pitchHistory = new Array(120).fill(null); 
 
-// ===== 下载 =====
-function download() {
-  const canvas = document.getElementById('outputCanvas');
-  const a = document.createElement('a');
-  a.download = '拼豆图纸Pro.png';
-  a.href = canvas.toDataURL('image/png');
-  a.click();
-}
+        function loopTuner() {
+            if (currentTab !== 'tuner') return;
+            analyser.getFloatTimeDomainData(buf);
+            let pitch = autoCorrelate(buf, audioContext.sampleRate);
+            
+            let targetY = null;
+            if (pitch !== -1 && pitch > 60 && pitch < 1200) { 
+                let exactNote = noteFromPitch(pitch);
+                let roundedNote = Math.round(exactNote);
+                let cents = centsOffFromPitch(pitch, exactNote);
+                
+                document.getElementById('noteDisplay').innerText = `${getNoteName(roundedNote)} ${cents >= 0 ? '+' : ''}${cents}`;
+                document.getElementById('noteDisplay').style.color = Math.abs(cents) < 15 ? "var(--secondary)" : "var(--primary)";
+                document.getElementById('hzDisplay').innerText = `${Math.round(pitch)} Hz`;
 
-initPalette();
-</script>
+                targetY = tCanvas.height - ((exactNote - MIN_NOTE) / NOTE_RANGE) * tCanvas.height;
+            } else {
+                document.getElementById('noteDisplay').innerText = "🔇";
+                document.getElementById('hzDisplay').innerText = "安静...";
+            }
+
+            pitchHistory.push(targetY); pitchHistory.shift(); 
+            tCtx.clearRect(0, 0, tCanvas.width, tCanvas.height);
+            tCtx.textAlign = "right"; tCtx.textBaseline = "middle"; tCtx.font = "14px sans-serif";
+            
+            for (let n = MIN_NOTE; n <= MAX_NOTE; n++) {
+                let noteName = noteStrings[n % 12];
+                let y = tCanvas.height - ((n - MIN_NOTE) / NOTE_RANGE) * tCanvas.height;
+                if (!noteName.includes('#')) {
+                    tCtx.beginPath(); tCtx.moveTo(0, y); tCtx.lineTo(tCanvas.width - 50, y); 
+                    tCtx.strokeStyle = noteName === "C" ? "rgba(255,255,255,0.2)" : "rgba(255,255,255,0.05)";
+                    tCtx.stroke();
+                    tCtx.fillStyle = noteName === "C" ? "var(--secondary)" : "#666";
+                    tCtx.fillText(getNoteName(n), tCanvas.width - 10, y);
+                }
+            }
+
+            tCtx.beginPath(); tCtx.lineWidth = 4; tCtx.strokeStyle = "var(--primary)";
+            let stepX = (tCanvas.width - 60) / pitchHistory.length, isDrawing = false;
+            for (let i = 0; i < pitchHistory.length; i++) {
+                let py = pitchHistory[i], px = i * stepX;
+                if (py !== null) {
+                    if (!isDrawing) { tCtx.moveTo(px, py); isDrawing = true; } else { tCtx.lineTo(px, py); }
+                    tCtx.fillStyle = "rgba(255, 107, 107, 0.8)";
+                    tCtx.beginPath(); tCtx.arc(px, py, 2, 0, Math.PI*2); tCtx.fill();
+                    tCtx.beginPath(); tCtx.moveTo(px, py); 
+                } else isDrawing = false; 
+            }
+            tCtx.stroke();
+            animationId = requestAnimationFrame(loopTuner);
+        }
+
+        // ================= 模块 2：老歌测音准 =================
+        const sCanvas = document.getElementById('songCanvas');
+        const sCtx = sCanvas.getContext('2d');
+        const rawSongs = {
+            star: [
+                {w:"一",n:60,l:80,g:20}, {w:"闪",n:60,l:80,g:20}, {w:"一",n:67,l:80,g:20}, {w:"闪",n:67,l:80,g:20},
+                {w:"亮",n:69,l:80,g:20}, {w:"晶",n:69,l:80,g:20}, {w:"晶",n:67,l:150,g:60},
+                {w:"满",n:65,l:80,g:20}, {w:"天",n:65,l:80,g:20}, {w:"都",n:64,l:80,g:20}, {w:"是",n:64,l:80,g:20},
+                {w:"小",n:62,l:80,g:20}, {w:"星",n:62,l:80,g:20}, {w:"星",n:60,l:150,g:0}
+            ],
+            birthday: [
+                {w:"祝",n:67,l:60,g:10}, {w:"你",n:67,l:40,g:20}, {w:"生",n:69,l:80,g:20}, {w:"日",n:67,l:80,g:20},
+                {w:"快",n:72,l:80,g:20}, {w:"乐",n:71,l:150,g:50}
+            ],
+            joy: [
+                {w:"欢",n:64,l:60,g:10}, {w:"乐",n:64,l:60,g:10}, {w:"女",n:65,l:60,g:10}, {w:"神",n:67,l:60,g:10},
+                {w:"圣",n:67,l:60,g:10}, {w:"洁",n:65,l:60,g:10}, {w:"美",n:64,l:60,g:10}, {w:"丽",n:62,l:60,g:10}
+            ]
+        };
+
+        let parsedSong = [], songOffset = 0, songScore = 0, isSongPlaying = false;
+        const PLAYHEAD_X = 150; 
+        const SONG_MIN_NOTE = 55; const SONG_MAX_NOTE = 76; const SONG_NOTE_RANGE = SONG_MAX_NOTE - SONG_MIN_NOTE;
+
+        function getSongY(noteFloat) { return sCanvas.height - ((noteFloat - SONG_MIN_NOTE) / SONG_NOTE_RANGE) * sCanvas.height; }
+
+        function drawSongInit() {
+            sCtx.clearRect(0,0,sCanvas.width,sCanvas.height);
+            sCtx.fillStyle = "rgba(255,255,255,0.1)"; sCtx.font = "20px sans-serif"; sCtx.textAlign="center";
+            sCtx.fillText("选择上方歌曲，点击开始挑战", sCanvas.width/2, sCanvas.height/2);
+        }
+
+        function startSong() {
+            if(!isMicActive) { alert("请开启麦克风！"); return; }
+            let rawData = rawSongs[document.getElementById('songSelect').value];
+            parsedSong = []; let currentX = PLAYHEAD_X + 200; 
+            for(let i=0; i<rawData.length; i++) {
+                parsedSong.push({ word: rawData[i].w, note: rawData[i].n, startX: currentX, endX: currentX + rawData[i].l, hitCount: 0 });
+                currentX += rawData[i].l + rawData[i].g;
+            }
+            songOffset = 0; songScore = 0; isSongPlaying = true;
+            document.getElementById('songScoreDisplay').innerText = "0";
+            if(animationId) cancelAnimationFrame(animationId);
+            loopSong();
+        }
+
+        function loopSong() {
+            if (currentTab !== 'song' || !isSongPlaying) return;
+            sCtx.clearRect(0, 0, sCanvas.width, sCanvas.height);
+
+            sCtx.strokeStyle = "rgba(255,255,255,0.05)"; sCtx.lineWidth = 1;
+            for(let n = SONG_MIN_NOTE; n <= SONG_MAX_NOTE; n++) {
+                if(!noteStrings[n%12].includes('#')) {
+                    let y = getSongY(n); sCtx.beginPath(); sCtx.moveTo(0,y); sCtx.lineTo(sCanvas.width,y); sCtx.stroke();
+                }
+            }
+
+            sCtx.strokeStyle = "rgba(255, 255, 255, 0.4)"; sCtx.lineWidth = 2;
+            sCtx.beginPath(); sCtx.moveTo(PLAYHEAD_X, 0); sCtx.lineTo(PLAYHEAD_X, sCanvas.height); sCtx.stroke();
+            sCtx.fillStyle = "var(--secondary)";
+            sCtx.beginPath(); sCtx.moveTo(PLAYHEAD_X, sCanvas.height); sCtx.lineTo(PLAYHEAD_X-10, sCanvas.height-15); sCtx.lineTo(PLAYHEAD_X+10, sCanvas.height-15); sCtx.fill();
+
+            analyser.getFloatTimeDomainData(buf);
+            let pitch = autoCorrelate(buf, audioContext.sampleRate);
+            let userNoteFloat = null;
+            if (pitch !== -1 && pitch > 80) {
+                userNoteFloat = noteFromPitch(pitch);
+                let targetNoteApprox = parsedSong.find(n => (n.startX - songOffset) <= PLAYHEAD_X && (n.endX - songOffset) >= PLAYHEAD_X)?.note;
+                if (targetNoteApprox) {
+                    if (userNoteFloat < targetNoteApprox - 6) userNoteFloat += 12;
+                    if (userNoteFloat > targetNoteApprox + 6) userNoteFloat -= 12;
+                }
+            }
+
+            songOffset += 3; 
+            let isHittingAnything = false, activeNotes = 0;
+
+            for (let i = 0; i < parsedSong.length; i++) {
+                let note = parsedSong[i], screenStartX = note.startX - songOffset, screenEndX = note.endX - songOffset, y = getSongY(note.note);
+                if (screenEndX > 0 && screenStartX < sCanvas.width) {
+                    activeNotes++;
+                    let isCurrentBlock = (PLAYHEAD_X >= screenStartX && PLAYHEAD_X <= screenEndX), isPitchMatching = false;
+                    if (isCurrentBlock && userNoteFloat !== null && Math.abs(userNoteFloat - note.note) < 1.5) {
+                        isPitchMatching = true; isHittingAnything = true; songScore += 10;
+                        document.getElementById('songScoreDisplay').innerText = songScore;
+                    }
+
+                    if (screenEndX < PLAYHEAD_X) sCtx.fillStyle = "rgba(255, 255, 255, 0.1)"; 
+                    else if (isCurrentBlock) {
+                        sCtx.fillStyle = isPitchMatching ? "var(--accent)" : "rgba(233, 69, 96, 0.6)"; 
+                        if(isPitchMatching) { sCtx.strokeStyle = "white"; sCtx.lineWidth = 3; sCtx.strokeRect(screenStartX, y - 18, screenEndX - screenStartX, 36); }
+                    } else sCtx.fillStyle = "rgba(78, 205, 196, 0.4)"; 
+
+                    sCtx.beginPath(); sCtx.roundRect(screenStartX, y - 15, screenEndX - screenStartX, 30, 8); sCtx.fill();
+                    sCtx.fillStyle = "white"; sCtx.font = "bold 16px sans-serif"; sCtx.textAlign = "left"; sCtx.textBaseline = "middle";
+                    sCtx.fillText(note.word, screenStartX + 10, y);
+                }
+            }
+
+            if (userNoteFloat !== null) {
+                let userY = getSongY(userNoteFloat);
+                sCtx.beginPath(); sCtx.arc(PLAYHEAD_X, userY, isHittingAnything ? 12 : 8, 0, Math.PI*2);
+                sCtx.fillStyle = isHittingAnything ? "white" : "var(--primary)";
+                sCtx.shadowColor = isHittingAnything ? "var(--accent)" : "var(--primary)"; sCtx.shadowBlur = 15; sCtx.fill(); sCtx.shadowBlur = 0; 
+            }
+
+            if (activeNotes === 0 && songOffset > 500) {
+                isSongPlaying = false;
+                sCtx.fillStyle = "rgba(0,0,0,0.7)"; sCtx.fillRect(0,0,sCanvas.width,sCanvas.height);
+                sCtx.fillStyle = "var(--accent)"; sCtx.font = "bold 30px sans-serif"; sCtx.textAlign="center";
+                sCtx.fillText("挑战结束! 最终得分: " + songScore, sCanvas.width/2, sCanvas.height/2);
+            } else animationId = requestAnimationFrame(loopSong);
+        }
+
+        // ================= 模块 3：声控跑酷游戏 =================
+        const gCanvas = document.getElementById('gameCanvas');
+        const gCtx = gCanvas.getContext('2d');
+        let gameRunning = false, gameScore = 0, frames = 0, player = { x: 80, y: 150, radius: 12 }, obstacles = [];
+
+        function drawGameInit() {
+            gCtx.clearRect(0,0,gCanvas.width,gCanvas.height);
+            gCtx.fillStyle = "rgba(255,255,255,0.1)"; gCtx.font = "20px sans-serif"; gCtx.textAlign="center";
+            gCtx.fillText("点击上方【开始飞行】启动引擎", gCanvas.width/2, gCanvas.height/2);
+        }
+
+        function startGame() {
+            if(!isMicActive) { alert("请开启麦克风！"); return; }
+            if(animationId) cancelAnimationFrame(animationId);
+            
+            // 重置游戏状态
+            player.y = gCanvas.height / 2; 
+            obstacles = []; 
+            gameScore = 0; 
+            frames = 0; 
+            gameRunning = true;
+            
+            document.getElementById('gameScoreDisplay').innerText = 0;
+            // 隐藏结算面板
+            document.getElementById('gameOverScreen').style.display = 'none'; 
+            
+            loopGame();
+        }
+
+        function loopGame() {
+            if (currentTab !== 'game') return;
+            if (!gameRunning) return;
+
+            analyser.getFloatTimeDomainData(buf);
+            let pitch = autoCorrelate(buf, audioContext.sampleRate);
+            
+            // 绝对悬停逻辑：安静时 targetY 维持在当前位置不动
+            let targetY = player.y; 
+            if (pitch !== -1 && pitch > 80) {
+                let normalized = (pitch - 80) / 500;
+                normalized = Math.max(0, Math.min(1, normalized)); 
+                targetY = gCanvas.height - (normalized * gCanvas.height);
+            } 
+            
+            player.y += (targetY - player.y) * 0.2; 
+            player.y = Math.max(player.radius, Math.min(gCanvas.height - player.radius, player.y));
+
+            gCtx.clearRect(0, 0, gCanvas.width, gCanvas.height);
+            
+            // 绘制玩家光球 (加了酷炫的发光)
+            gCtx.shadowBlur = 15; gCtx.shadowColor = "var(--secondary)";
+            gCtx.fillStyle = "var(--white)"; gCtx.beginPath(); gCtx.arc(player.x, player.y, player.radius, 0, Math.PI * 2); gCtx.fill();
+            gCtx.shadowBlur = 0;
+
+            if (frames % 80 === 0) { 
+                let gapY = Math.random() * (gCanvas.height - 120) + 20;
+                obstacles.push({ x: gCanvas.width, y: 0, w: 30, h: gapY }); 
+                obstacles.push({ x: gCanvas.width, y: gapY + 90, w: 30, h: gCanvas.height - gapY - 90 }); 
+            }
+
+            for (let i = 0; i < obstacles.length; i++) {
+                let obs = obstacles[i]; obs.x -= 4; 
+                
+                // 绘制障碍物 (增加霓虹边框)
+                gCtx.fillStyle = "rgba(255, 107, 107, 0.8)"; 
+                gCtx.fillRect(obs.x, obs.y, obs.w, obs.h);
+                gCtx.strokeStyle = "var(--primary)"; gCtx.lineWidth = 2;
+                gCtx.strokeRect(obs.x, obs.y, obs.w, obs.h);
+                
+                // 精准的 圆形-矩形 碰撞检测
+                let testX = Math.max(obs.x, Math.min(player.x, obs.x + obs.w));
+                let testY = Math.max(obs.y, Math.min(player.y, obs.y + obs.h));
+                if (Math.sqrt((player.x - testX)**2 + (player.y - testY)**2) <= player.radius - 2) {
+                    gameRunning = false;
+                }
+            }
+            
+            obstacles = obstacles.filter(o => o.x + o.w > 0);
+            frames++; if (frames % 10 === 0) { gameScore++; document.getElementById('gameScoreDisplay').innerText = gameScore; }
+
+            if (gameRunning) {
+                animationId = requestAnimationFrame(loopGame);
+            } else { 
+                // 游戏结束：停止循环，呼出 UI 面板
+                document.getElementById('finalScore').innerText = gameScore;
+                document.getElementById('gameOverScreen').style.display = 'block';
+            }
+        }
+    </script>
 </body>
 </html>
